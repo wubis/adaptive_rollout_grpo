@@ -1,6 +1,6 @@
 # Adaptive Rollout Budgeting for GRPO
 
-**Status, November 6, 2026.** The polynomial verifier audit and bounded 384-token fixed-8 pilot are complete. Four updates fit on a Colab A100 40 GB, and paired validation was 8/8 at both endpoints. The next milestone is to freeze the scope and decision criteria for a small offline replay feasibility check.
+**Status, November 6, 2026.** The bounded 384-token fixed-8 pilot completed four A100 updates and scored 8/8 at both validation endpoints. The offline replay feasibility protocol is frozen, and the harness passed local checks. Real replay results await collection on the frozen splits.
 
 **Research question.** At the same generated-token budget, does using predicted continuation costs to allocate the next four rollouts between fresh prompts and uniform-reward GRPO groups improve held-out math accuracy?
 
@@ -190,5 +190,27 @@ Manual review agreed with all 16 final-answer grades. Four post-training token s
 Colab confirmed the recovery runtime was terminated after log retrieval. The ignored `artifacts/fixed8.KSQmiIPa/` directory contains the full config, per-step snapshots, raw rollouts, final metrics, manual grader audit, console output, and session history.
 
 **Next milestone.** Predeclare the smallest frozen-policy replay feasibility check with disjoint calibration and held-out prompts, budget reservation and debit checks, and a minimum collection-yield margin. Use the measured generation throughput to scope it and include answer-format coverage in the verifier audit. Reserve a harder validation sample for any future claim about learning.
+
+### November 6, 2026 · Offline replay feasibility protocol
+
+**Frozen data and collection.** Continue the seed-41 MATH Algebra selection from the pilot, which excludes the smoke originals. Skip the first 28 eligible rows assigned to the pilots, then take eligible rows 29–44 for calibration and 45–64 for held-out replay. Both sets use levels 1–3 and have distinct IDs and normalized problem text. Use the pinned base checkpoint in FP32 with eager attention, the pilot's polynomial verifier, temperature 1, top-p 1, top-k 0, and a 384-token cap. Cache 16 ordered completions per prompt in two consecutive batches of eight. Set the seed once per prompt to 67 plus its zero-based position in the combined calibration-then-held-out manifest. Treat each run as a separate cache for that split and record actual collection time and tokens. The upper bound is 221,184 generated tokens. The pilot mean of 236 tokens per completion and 123.2 tokens/s project about 18.4 minutes of A100 generation, or 29.9 minutes at the cap and the same throughput, plus setup and transfers. [Frozen replay plan](replay_feasibility.json)
+
+**Calibration and paired evaluation.** Fit one shared table of next-chunk mix probability and pooled length. For a continuation, use its count and uniform outcome if there are at least three distinct calibration prompts. Pool across outcomes at that count, then across continuation counts, using the same minimum. Leave unsupported states ineligible in both matched arms. Freeze the table and the best simple cutoff from 4, 8, 12, and 16 by calibration yield, breaking cutoff ties toward the smaller value. Cutoff 4 implements fresh-only. Hold the shuffled prompt order fixed across arms using seed 53. Use dispatch width 2, a 6,144-token window cap, and a 12,288-token run cap. Reserve 1,536 tokens per selected action under both caps and debit actual completion lengths, including truncated and discarded uniform groups. The offline harness holds the policy fixed across all windows.
+
+| Gate | Requirement for a feasibility pass |
+| --- | --- |
+| Budget | Every arm finishes within 1,535 tokens of the common cap. The largest difference between arms is at most 768 tokens. |
+| Dispatch | At least one same-state dispatch differs between the matched arms. |
+| Yield | The token-cost arm gains at least 0.08 mixed groups per 1,000 generated tokens over both the pooled-cost arm and the calibration-selected control. This is about one additional group at the run cap. |
+| Length | On supported held-out continuation states from at least six distinct prompts, mean absolute token error is at most that of the pooled estimate. |
+| Mix rate | Within a count and uniform-outcome stratum, split predicted cost below versus at or above the frozen pooled cost. At least one stratum must have three observations in each bin. Every supported comparison must have a next-chunk mix-rate gap of at most 0.33. |
+
+Apply all gates together. Report underpowered checks as a reason to hold. A pass supports a broader replay replication. The small single-order check measures collection yield and budget feasibility on Algebra prompts.
+
+**Review and local evidence.** Report extraction source, verifier status, and truncation for both caches. Before interpreting the yield, review every polynomial extraction and the first two entries by manifest and completion index in each nonempty source, status, and truncation bucket. Record false credits and missed explicit answers. An unresolved reward error pauses expansion. The dispatcher receives only revealed chunks. Same-state counterfactual outcomes, full-cache solve counts, and abandoned groups that could have mixed appear only in the retrospective report.
+
+The hand trace uses width 1 and an 80-token window and run cap. A reserves 40 tokens and returns 12 with uniform rewards. B and C return mixed chunks costing 24 and 40, while A's continuation would mix at a cost of 20. With shared mix probability 0.5 and pooled fresh and continuation costs of 20 and 30, the pooled arm probes A, B, C for 76 tokens and two groups. The token arm ranks A's continuation using the observed cost of 12, then probes B. It uses 56 tokens and gets two groups. The test records the exact cache reads and verifies that C remains unseen by the token arm.
+
+All 30 local tests passed. The synthetic CLI run passed budget, dispatch, and length checks and correctly returned no-go on yield and mix. The lengths-only check used the completed pilot's real token counts with all rewards set to zero. The cutoff-4 and cutoff-8 traces debited 11,126 and 11,035 tokens, with every dispatch within both reservations. These checks validate mechanics. The real frozen splits have yet to be collected. Local outputs are under `artifacts/replay.local-check/`.
 
 Record the TA's scope decision and link the replay config, frozen comparison protocol, metrics, final plots, report, and slides as they become available. The frozen comparison protocol should include trainer and data revisions, split sizes, calibration tables and estimator, replay gates, decoding limits, dispatch width, window and run caps, hardware allocation, and seeds. Probe size, group cap, and alternative utilities are secondary experiments once the main comparison is feasible.
