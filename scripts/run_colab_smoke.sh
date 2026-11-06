@@ -6,11 +6,22 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 gpu=${1:-A100}
 case "$gpu" in
     A100|H100|L4|T4|G4) ;;
-    *) printf 'Usage: bash scripts/run_colab_smoke.sh [A100|H100|L4|T4|G4]\n' >&2; exit 2 ;;
+    *) printf 'Usage: bash scripts/run_colab_smoke.sh [A100|H100|L4|T4|G4] [--compare-caps]\n' >&2; exit 2 ;;
+esac
+
+upload_files=(fixed8.py verifier.py smoke_fixed8.py validation_smoke.jsonl)
+case "${2:-}" in
+    '') driver=smoke_fixed8.py; summary=update.json ;;
+    --compare-caps)
+        driver=compare_fixed8_caps.py
+        summary=cap_comparison.json
+        upload_files+=("$driver")
+        ;;
+    *) printf 'Unknown mode: %s\n' "$2" >&2; exit 2 ;;
 esac
 
 missing_inputs=0
-for file in fixed8.py smoke_fixed8.py validation_smoke.jsonl requirements-colab.txt; do
+for file in "${upload_files[@]}" requirements-colab.txt; do
     if [[ ! -f "$file" ]]; then
         printf 'Missing required input: %s\n' "$file" >&2
         missing_inputs=1
@@ -76,17 +87,17 @@ if ! grep -Fxq 'FIXED8_CUDA_OK' "$run_dir/gpu.txt"; then
 fi
 
 colab_cli install -s "$session" -r requirements-colab.txt 2>&1 | tee "$run_dir/install.txt"
-for file in fixed8.py smoke_fixed8.py validation_smoke.jsonl; do
+for file in "${upload_files[@]}"; do
     colab_cli upload -s "$session" "$file" "/content/$file"
 done
 
 smoke_status=0
-colab_cli exec -s "$session" --timeout 600 <<'PY' 2>&1 | tee "$run_dir/console.txt" || smoke_status=$?
+colab_cli exec -s "$session" --timeout 600 <<PY 2>&1 | tee "$run_dir/console.txt" || smoke_status=$?
 import subprocess
 import sys
 
 with subprocess.Popen(
-    [sys.executable, "-u", "smoke_fixed8.py"],
+    [sys.executable, "-u", "$driver"],
     cwd="/content",
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
@@ -100,7 +111,7 @@ print("FIXED8_DRIVER_OK")
 PY
 
 download_status=0
-for file in rollouts.jsonl update.json; do
+for file in rollouts.jsonl "$summary"; do
     if ! colab_cli download -s "$session" "/content/$file" "$run_dir/$file"; then
         printf 'Could not retrieve %s.\n' "$file" >&2
         download_status=1

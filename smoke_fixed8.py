@@ -7,13 +7,13 @@ from importlib.metadata import version
 import json
 import math
 from pathlib import Path
-import re
 from time import perf_counter
 
 import torch
 from torch.nn import functional as F
 
 from fixed8 import ADVANTAGE_EPSILON, GROUP_SIZE, group_advantages
+from verifier import boxed_answer as boxed_answer, parse_answer, score_answer
 
 
 MODEL_ID = "Qwen/Qwen2.5-Math-1.5B"
@@ -22,6 +22,17 @@ CLIP_EPSILON = 0.2
 LOGPROB_TOLERANCE = 0.01
 LEARNING_RATE = 1e-6
 SAMPLING = {"temperature": 1.0, "top_p": 1.0, "top_k": 0}
+
+
+def load_policy():
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    torch.set_float32_matmul_precision("highest")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, revision=MODEL_REVISION)
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL_ID, revision=MODEL_REVISION, dtype=torch.float32, attn_implementation="eager",
+    ).to("cuda").eval()
+    return model, tokenizer
 
 
 @dataclass
@@ -45,45 +56,6 @@ def load_fixture(path):
     if {prompt["role"] for prompt in prompts} != {"update", "evaluation"}:
         raise ValueError("The fixture needs distinct update and evaluation prompts")
     return prompts
-
-
-def boxed_answer(text):
-    boxes = list(re.finditer(r"\\boxed\s*\{", text))
-    if not boxes:
-        return None
-    start = boxes[-1].end()
-    depth = 1
-    for index in range(start, len(text)):
-        if text[index] == "{":
-            depth += 1
-        elif text[index] == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start:index].strip() or None
-    return None
-
-
-def parse_answer(answer):
-    from math_verify import LatexExtractionConfig, parse
-
-    return parse(
-        f"${answer}$",
-        extraction_config=[LatexExtractionConfig()],
-        extraction_mode="first_match",
-        fallback_mode="no_fallback",
-    )
-
-
-def score_answer(text, gold):
-    from math_verify import verify
-
-    answer = boxed_answer(text)
-    parsed = parse_answer(answer) if answer is not None else []
-    if not parsed:
-        return 0, "unparseable"
-    if verify(gold, parsed):
-        return 1, "correct"
-    return 0, "incorrect"
 
 
 @torch.no_grad()
@@ -189,8 +161,6 @@ def update_policy(model, groups, metrics):
 
 
 def run(args):
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-
     if not torch.cuda.is_available():
         raise RuntimeError("This smoke test requires a CUDA GPU")
     if args.max_new_tokens < 1:
@@ -202,12 +172,8 @@ def run(args):
             raise ValueError(f"Could not parse gold answer for {prompt['prompt_id']}")
 
     torch.manual_seed(args.seed)
-    torch.set_float32_matmul_precision("highest")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, revision=MODEL_REVISION)
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID, revision=MODEL_REVISION, dtype=torch.float32, attn_implementation="eager",
-    ).to("cuda").eval()
     # Eval mode disables dropout for both generation and the differentiable forward pass.
+    model, tokenizer = load_policy()
     torch.cuda.reset_peak_memory_stats()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     metrics = {

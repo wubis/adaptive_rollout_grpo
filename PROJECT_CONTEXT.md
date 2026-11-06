@@ -1,6 +1,6 @@
 # Adaptive Rollout Budgeting for GRPO
 
-**Status, November 5, 2026.** The fixed-8 smoke test passed on Colab. Audit truncation and verifier failures before freezing the short pilot settings. Confirm the contribution with the TA in parallel. Use frozen-policy replay to decide whether to proceed to online training.
+**Status, November 6, 2026.** The fixed-8 smoke test, paired generation-cap comparison, and offline verifier review are complete. Freeze the reviewed final-answer fallback for the short fixed-8 pilot at a provisional 384-token cap. Confirm the contribution with the TA in parallel. Use frozen-policy replay to decide whether to proceed to online training.
 
 **Research question.** At the same generated-token budget, does using predicted continuation costs to allocate the next four rollouts between fresh prompts and uniform-reward GRPO groups improve held-out math accuracy?
 
@@ -12,7 +12,7 @@ The **heuristic track** uses *Adaptive Rollout Allocation for Online Reinforceme
 - **20 points.** Present the paper and project results in 15 minutes, followed by 5 minutes of questions.
 - **10 points each.** Propose a nontrivial improvement or application and provide empirical evidence. Confirm with the TA that VIP can anchor the paper summary while SARA provides the closest comparison for the proposed improvement. Also confirm whether replay evidence would satisfy the rubric if online training is infeasible.
 
-Teams of two to four choose a topic by the end of week three. Solo work requires written instructor authorization, and faculty-advisor collaboration requires instructor approval. The course states that students own the research ideas and implementation. Disclose AI assistance in the report. Assistance to date includes proposal critique, methodology review and editing, probability checks, reference verification, and implementation of the fixed-8 advantage function, smoke driver, validation fixture, tests, and Colab tooling.
+Teams of two to four choose a topic by the end of week three. Solo work requires written instructor authorization, and faculty-advisor collaboration requires instructor approval. The course states that students own the research ideas and implementation. Disclose AI assistance in the report. Assistance to date includes proposal critique, methodology review and editing, probability checks, reference verification, implementation of the fixed-8 advantage function, smoke driver, validation fixture, tests, and Colab tooling, the generation-cap comparison, and implementation and offline review of the verifier fallback.
 
 ## Mechanism and contribution
 
@@ -84,5 +84,48 @@ Install the official CLI with `uv tool install google-colab-cli`. From the repo,
 **November 5, 2026 · Fixed-8 Colab smoke.** Run `fixed8.WHnqEgfI` passed on an A100-SXM4-40GB with the pinned Qwen2.5-Math-1.5B checkpoint and seed 17. One FP32 AdamW step used all 24 rollouts from three mixed groups. The groups had 1, 5, and 1 correct completions out of eight. Generated and optimized token counts both reconciled to 4,219, with 192 separate evaluation tokens. The maximum rollout-to-training log-probability difference was $5.67\times10^{-5}$ with zero clipping, gradient norm 1.05, and a measured embedding parameter change of $1.00\times10^{-6}$. Training generation took 24.38 seconds and the update took 4.68 seconds. Peak allocated memory was 24.76 GiB. The runtime was stopped after log retrieval. Local logs are in `artifacts/fixed8.WHnqEgfI/`.
 
 At the 192-token cap, 19 of 24 update completions were truncated and 15 received the `unparseable` verifier status, including 14 truncated completions. The separate greedy evaluation completion was truncated and scored zero. Review completion length and answer extraction in the pilot before interpreting the reward mix as a measure of prompt difficulty.
+
+### November 6, 2026 · Verifier audit and paired cap comparison
+
+The audit classified all 15 `unparseable` smoke-update completions. Twelve had no box, three contained empty `\boxed{}` placeholders, and zero had an unclosed box or a nonempty boxed expression rejected by the parser. Three missing-box completions for `math-algebra-train-5`, at zero-based indices 3, 6, and 7, explicitly gave the correct circle center $(3,-1)$ and received zero. Index 7 ended naturally. Math-Verify accepted the extracted coordinate pair when checked separately, so the miss came from answer extraction. The row-level notes are in `artifacts/fixed8.WHnqEgfI/verifier-audit.jsonl`.
+
+Run `fixed8.rLm5KFUz` used the same pinned Qwen2.5-Math-1.5B revision (`4a83ca6e4526a4f2da3aa259ec36c259f66b2ab2`), the three validation update prompts, and the smoke verifier. It sampled eight completions per prompt at each cap on the same A100 40 GB runtime in FP32 with eager attention. Sampling used temperature 1, top-p 1, and top-k 0. Each cap reset seeds 17, 18, and 19 for fixture rows 0, 3, and 5, respectively. The 192-token arm was freshly sampled for this comparison. All 24 shorter token sequences matched the corresponding longer sequence through the shorter endpoint, and every shorter completion that emitted EOS was identical in both arms. The run used Transformers 4.57.6, Math-Verify 0.9.0, and PyTorch 2.11.0+cu130. It performed generation and grading only. The raw `rollouts.jsonl` and `cap_comparison.json` are in `artifacts/fixed8.rLm5KFUz/`. The runtime was stopped after log retrieval.
+
+| Max new tokens | Truncated | Parseable | Verified correct | Generated tokens | Mixed groups | Mixed groups per 1,000 tokens |
+| --- | --- | --- | --- | --- | --- | --- |
+| 192 | 20/24 | 8/24 | 3/24 | 4,241 | 3/3 | 0.707 |
+| 384 | 8/24 | 14/24 | 8/24 | 6,893 | 3/3 | 0.435 |
+
+**Pilot cap.** Use 384 provisionally. It reduced truncation by 12 completions and recovered five verified-correct answers with zero reversals. It consumed 62.5% more tokens and produced the same three mixed groups, so its mixed-group yield per token was lower. Choose 384 to reduce the effect of early cutoffs on rewards in the pilot. The three-prompt fixture supports a smoke-level decision about the cap. It gives limited evidence about broader throughput or accuracy.
+
+**Verifier follow-up.** Validate a narrow fallback for an explicit final answer when the original solution has no usable box. Keep Math-Verify for equivalence and constrain extraction to the original answer before any unrelated prompt continuation. Test against intermediate values, unfinished reasoning, and unrelated answers before freezing rewards. At 384, four more unparseable circle completions (indices 1, 2, 4, and 6 in the new run) explicitly stated the correct center. Index 2 continued into a different problem. These cases support an extraction fix before the short pilot. Both measured arms used the existing rule.
+
+### November 6, 2026 · Offline verifier review
+
+[The candidate verifier](verifier.py) bounds the answer at the first recognized new-problem or user heading, echoed problem prompt, or question-like line. It takes the last usable box within that boundary, ignoring empty, unclosed, and explicit layout placeholders. With no usable box it accepts a complete scalar, fraction, or tuple from an answer label or a statement about the quantity requested in the prompt. An unlabelled quantity statement needs an opening or concluding position or a conclusion cue. The extractor selects a single answer before seeing the gold. Math-Verify 0.9.0 checks equivalence. The existing smoke and cap drivers use the historical box-only scorer. [The offline rescorer](rescore_fixed8.py) exercises both rules.
+
+All 73 saved completions were re-scored offline, and the legacy results matched every recorded reward and verifier status. The primary set was the 24 completions at cap 384. Indices in the review are zero-based. Raw outputs, summary, and the per-change human review are in `artifacts/fixed8.verifier-review/`.
+
+| Saved cohort | Parseable, old → new | Verified correct, old → new | Mixed groups, old → new |
+| --- | --- | --- | --- |
+| 384-token comparison, primary | 14/24 → 18/24 | 8/24 → 12/24 | 3/3 → 3/3 |
+| 192-token comparison | 8/24 → 11/24 | 3/24 → 7/24 | 3/3 → 3/3 |
+| Smoke update | 9/24 → 11/24 | 7/24 → 10/24 | 3/3 → 3/3 |
+| Smoke greedy evaluation | 1/1 → 1/1 | 0/1 → 1/1 | — |
+
+All 12 reward changes were hand-checked and went from 0 to 1. The paired caps share the same four recovered answers in the common prefix, so these represent four distinct cases across those two arms.
+
+| Cohort | Prompt ID | Index | Extracted answer | Reward | Review |
+| --- | --- | ---: | --- | --- | --- |
+| Both paired caps | `math-algebra-train-5` | 1 | `(3, -1)` | 0 → 1 | Correct concluding value in inline math. |
+| Both paired caps | `math-algebra-train-5` | 2 | `(3, -1)` | 0 → 1 | Correct opening answer before a separate domain problem. |
+| Both paired caps | `math-algebra-train-5` | 4 | `(3, -1)` | 0 → 1 | Explicit ordered-pair assignment gives the requested center. |
+| Both paired caps | `math-algebra-train-5` | 6 | `(3, -1)` | 0 → 1 | Correct named value in the concluding sentence. |
+| Smoke update | `math-algebra-train-5` | 3 | `(3,-1)` | 0 → 1 | Correct conclusion before a numbered earnings problem. |
+| Smoke update | `math-algebra-train-5` | 6 | `(3, -1)` | 0 → 1 | Correct center stated and repeated in prose. |
+| Smoke update | `math-algebra-train-5` | 7 | `(3, -1)` | 0 → 1 | Correct unboxed conclusion at natural EOS. |
+| Smoke evaluation | `math-algebra-train-7` | 0 | $(2^4+2(5^2))/6=66/6=11$ | 0 → 1 | The original box is correct. The legacy rule selected $89/6$ from a later problem. |
+
+**Limitations and pilot decision.** The primary set had no observed false positives after reviewing its credited answers. `math-algebra-train-3` index 3 still received zero at both paired caps. Its aligned derivation reaches 17 for the original question without a final-answer marker, and the fallback abstains on bare derivations. The new rule also removes two previously parseable placeholders, a phantom number in the smoke update and a text placeholder at 192. Boundaries rely on recognizable structure. Unmarked problem changes and unsupported answer formats remain limitations. Freeze this rule for the short pilot at 384 and spot-check its rewards on fresh validation prompts. The primary gains all come from one prompt, so treat the review as evidence for this pilot configuration.
 
 Update status and next steps here. Record the TA's scope decision and link the pilot and replay configs, frozen comparison protocol, metrics, final plots, report, and slides as they become available. The frozen protocol should include trainer and data revisions, split sizes, calibration tables and estimator, replay gates, decoding limits, dispatch width, window and run caps, hardware allocation, and seeds. Probe size, group cap, and alternative utilities are secondary experiments once the main comparison is feasible.

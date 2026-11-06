@@ -4,7 +4,7 @@ This project studies how to spend a fixed generation budget when post-training a
 
 When all eight answers are correct or all eight are wrong, their relative advantages are zero. A group with both outcomes gives GRPO a reward contrast to learn from. The planned experiment compares giving the next four rollouts to a fresh prompt versus giving them to a prompt whose previous answers all received the same reward. The comparison holds the generated-token budget fixed because completions can differ substantially in length.
 
-**Current status.** The fixed-8 smoke test passed on a Colab A100 with Qwen2.5-Math-1.5B. The next milestone is the short fixed-8 pilot, including a check of the completion cap and answer verifier. Adaptive allocation and replay are planned milestones. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the research design, prior work, and experiment record.
+**Current status.** The fixed-8 smoke test and paired generation-cap comparison ran on a Colab A100 with Qwen2.5-Math-1.5B. The offline verifier review supports freezing the bounded final-answer fallback for the short pilot at a provisional cap of 384 tokens. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the research design, prior work, and experiment record.
 
 ## Quick start
 
@@ -12,10 +12,18 @@ Run these commands from the repository root.
 
 ### Local tests
 
-The advantage tests use the Python standard library and run on a Mac with Python 3.10 or newer.
+Run the full local suite with the pinned Math-Verify dependency and Python 3.10 or newer.
 
 ```bash
-python3 -B -m unittest discover -s tests -v
+uv run --no-project --with 'math-verify[antlr4_13_2]==0.9.0' \
+  python -B -m unittest discover -s tests -v
+```
+
+With the original smoke and cap-comparison logs present locally, re-score both runs on CPU. The output goes to the ignored `artifacts/fixed8.verifier-review/` directory.
+
+```bash
+uv run --no-project --with 'math-verify[antlr4_13_2]==0.9.0' \
+  python -B rescore_fixed8.py
 ```
 
 ### One update on Colab
@@ -44,6 +52,10 @@ uv pip install --python "$(command -v python3)" --no-deps \
 PYTHONPATH="$kernel_dir" bash scripts/run_colab_smoke.sh A100
 ```
 
+### Compare generation caps
+
+Run `bash scripts/run_colab_smoke.sh A100 --compare-caps` to compare 192 and 384 tokens on the three validation update prompts. [The comparison driver](compare_fixed8_caps.py) samples eight completions per prompt per cap with paired seeds and the smoke-test verifier. It saves `rollouts.jsonl` and `cap_comparison.json` in the local run directory. The comparison only generates and grades completions.
+
 ## Reading a smoke run
 
 Each run saves its logs under `artifacts/fixed8.<run-id>/`.
@@ -61,10 +73,12 @@ Each run saves its logs under `artifacts/fixed8.<run-id>/`.
 | Path | Purpose |
 | --- | --- |
 | [`fixed8.py`](fixed8.py) | Converts eight binary rewards from one prompt into group-normalized advantages. |
+| [`verifier.py`](verifier.py) | Contains the historical box-only scorer and the reviewed final-answer fallback. |
+| [`rescore_fixed8.py`](rescore_fixed8.py) | Compares both scorers on saved rollouts without a model or GPU. |
 | [`smoke_fixed8.py`](smoke_fixed8.py) | Generates and grades completions, checks log-probabilities, and applies one GRPO update. |
 | [`validation_smoke.jsonl`](validation_smoke.jsonl) | Small MATH-derived fixture with separate update and evaluation rows. |
 | [`scripts/run_colab_smoke.sh`](scripts/run_colab_smoke.sh) | Runs the GPU smoke test through the Colab CLI and retrieves logs. |
 | [`requirements-colab.txt`](requirements-colab.txt) | Pinned Transformers and Math-Verify dependencies for the smoke driver. |
-| [`tests/`](tests/) | Local tests for the fixed-8 advantage calculation. |
+| [`tests/`](tests/) | Local tests for advantage calculation and verifier behavior. |
 
 Update this README as commands, entry points, and verified status change. Keep research decisions, comparison protocols, and results in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
