@@ -1,6 +1,6 @@
 # Adaptive Rollout Budgeting for GRPO
 
-**Status, November 5, 2026.** The fixed-8 smoke driver and validation fixture are in place. Run the [Colab smoke test](#running-the-fixed-8-smoke-test) and review its logs before the short pilot. Confirm the contribution with the TA in parallel. Use frozen-policy replay to decide whether to proceed to online training.
+**Status, November 5, 2026.** The fixed-8 smoke test passed on Colab. Audit truncation and verifier failures before freezing the short pilot settings. Confirm the contribution with the TA in parallel. Use frozen-policy replay to decide whether to proceed to online training.
 
 **Research question.** At the same generated-token budget, does using predicted continuation costs to allocate the next four rollouts between fresh prompts and uniform-reward GRPO groups improve held-out math accuracy?
 
@@ -80,5 +80,9 @@ The local interface is `group_advantages` in [fixed8.py](fixed8.py). Run `python
 Install the official CLI with `uv tool install google-colab-cli`. From the repo, run `bash scripts/run_colab_smoke.sh A100`. The [Colab runner](scripts/run_colab_smoke.sh) checks the local tests before provisioning, verifies CUDA, and installs [the pinned dependencies](requirements-colab.txt) alongside Colab's PyTorch. It saves the console, session history, `rollouts.jsonl`, and `update.json` under `artifacts/fixed8.<run-id>/`, including available logs after a driver failure. It releases the VM on exit. A passing result has a mixed group, an inactive ratio clip, a finite nonzero gradient, and a measured parameter change after one optimizer step. If all groups are uniform, the summary records the zero-gradient step and marks the smoke as failed. [Official Colab CLI](https://github.com/googlecolab/google-colab-cli)
 
 ## Project record
+
+**November 5, 2026 · Fixed-8 Colab smoke.** Run `fixed8.WHnqEgfI` passed on an A100-SXM4-40GB with the pinned Qwen2.5-Math-1.5B checkpoint and seed 17. One FP32 AdamW step used all 24 rollouts from three mixed groups. The groups had 1, 5, and 1 correct completions out of eight. Generated and optimized token counts both reconciled to 4,219, with 192 separate evaluation tokens. The maximum rollout-to-training log-probability difference was $5.67\times10^{-5}$ with zero clipping, gradient norm 1.05, and a measured embedding parameter change of $1.00\times10^{-6}$. Training generation took 24.38 seconds and the update took 4.68 seconds. Peak allocated memory was 24.76 GiB. The runtime was stopped after log retrieval. Local logs are in `artifacts/fixed8.WHnqEgfI/`.
+
+At the 192-token cap, 19 of 24 update completions were truncated and 15 received the `unparseable` verifier status, including 14 truncated completions. The separate greedy evaluation completion was truncated and scored zero. Review completion length and answer extraction in the pilot before interpreting the reward mix as a measure of prompt difficulty.
 
 Update status and next steps here. Record the TA's scope decision and link the pilot and replay configs, frozen comparison protocol, metrics, final plots, report, and slides as they become available. The frozen protocol should include trainer and data revisions, split sizes, calibration tables and estimator, replay gates, decoding limits, dispatch width, window and run caps, hardware allocation, and seeds. Probe size, group cap, and alternative utilities are secondary experiments once the main comparison is feasible.
