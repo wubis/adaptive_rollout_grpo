@@ -1,6 +1,6 @@
 # Adaptive Rollout Budgeting for GRPO
 
-**Status, November 5, 2026.** Planning. Start with [the completion plan](#step-by-step-completion-plan). Confirm the contribution with the TA and begin the fixed-8 smoke test in parallel. Use frozen-policy replay to decide whether to proceed to online training.
+**Status, November 5, 2026.** The fixed-8 smoke driver and validation fixture are in place. Run the [Colab smoke test](#running-the-fixed-8-smoke-test) and review its logs before the short pilot. Confirm the contribution with the TA in parallel. Use frozen-policy replay to decide whether to proceed to online training.
 
 **Research question.** At the same generated-token budget, does using predicted continuation costs to allocate the next four rollouts between fresh prompts and uniform-reward GRPO groups improve held-out math accuracy?
 
@@ -12,7 +12,7 @@ The **heuristic track** uses *Adaptive Rollout Allocation for Online Reinforceme
 - **20 points.** Present the paper and project results in 15 minutes, followed by 5 minutes of questions.
 - **10 points each.** Propose a nontrivial improvement or application and provide empirical evidence. Confirm with the TA that VIP can anchor the paper summary while SARA provides the closest comparison for the proposed improvement. Also confirm whether replay evidence would satisfy the rubric if online training is infeasible.
 
-Teams of two to four choose a topic by the end of week three. Solo work requires written instructor authorization, and faculty-advisor collaboration requires instructor approval. Students own the research ideas and implementation. Disclose AI assistance in the report. Assistance to date includes proposal critique, methodology review and editing, probability checks, and reference verification.
+Teams of two to four choose a topic by the end of week three. Solo work requires written instructor authorization, and faculty-advisor collaboration requires instructor approval. The course states that students own the research ideas and implementation. Disclose AI assistance in the report. Assistance to date includes proposal critique, methodology review and editing, probability checks, reference verification, and implementation of the fixed-8 advantage function, smoke driver, validation fixture, tests, and Colab tooling.
 
 ## Mechanism and contribution
 
@@ -70,6 +70,14 @@ Share the initial checkpoint, data splits, verifier, decoding settings, hardware
 5. **Resolve a weak result or a novelty objection before online training.** If the candidate barely changes decisions or misses the yield margin, use replay to identify where it fails. If the TA wants a more distinct contribution, inspect two diagnostics already in scope. Compare coverage of prompts that fail the first four attempts but eventually produce a correct answer. If a later checkpoint is available, check whether stale mix-rate or pooled-cost estimates change dispatch decisions. Use a reproducible finding to motivate one team-designed change, agree on its comparator and evidence with the TA, and test it on fresh replay data. If the online budget is infeasible, use a replay-centered scope only if the TA accepts it.
 6. **Freeze the online protocol and run the primary pair.** Once the replay and feasibility checks pass, record the exact configs, paired seeds, budgets, tolerance, and evaluation procedure. Before the full runs, exercise both arms for a few windows and verify loss and update parity on identical fixed-size data. Run the pooled-cost and token-cost arms to the common cap and log collection and training costs separately. Add a reference arm only when it supports a claim the project intends to make. Open the MATH-500 results after the protocol is frozen and use the validation split for development decisions.
 7. **Finish the evidence package, report, and presentation.** Make a results table with replay yield and coverage, paired online accuracy if available, and token and GPU-time totals. Plot validation accuracy against actual generated tokens. Document the outcome even if it misses the planned margin, and limit each claim to the evidence behind it. Finish the 5–6 page summary, disclose the scope of AI assistance, archive configs and run identifiers, and rehearse the 15-minute presentation plus questions.
+
+## Running the fixed-8 smoke test
+
+The local interface is `group_advantages` in [fixed8.py](fixed8.py). Run `python3 -B -m unittest discover -s tests -v` to check mixed and uniform groups and rejection of invalid rewards and group sizes.
+
+[The smoke driver](smoke_fixed8.py) pins the Qwen2.5-Math-1.5B base checkpoint and runs one full-parameter AdamW step in FP32. It generates one greedy pre-update answer on the evaluation row and eight sampled completions for each of the three update rows. The [validation fixture](validation_smoke.jsonl) paraphrases MATH algebra training rows at zero-based indices 0, 3, 5, and 7. Reserve the corresponding originals for validation when making the full split. Math-Verify grades the final `\boxed{}` expression when complete, including one present in a truncated completion. Missing, incomplete, or unparseable final boxes receive zero. Evaluation tokens are logged separately from training rollouts. [Pinned Qwen checkpoint](https://huggingface.co/Qwen/Qwen2.5-Math-1.5B/commit/4a83ca6e4526a4f2da3aa259ec36c259f66b2ab2) · [MATH algebra source](https://huggingface.co/datasets/EleutherAI/hendrycks_math/viewer/algebra/train)
+
+Install the official CLI with `uv tool install google-colab-cli`. From the repo, run `bash scripts/run_colab_smoke.sh A100`. The [Colab runner](scripts/run_colab_smoke.sh) checks the local tests before provisioning, verifies CUDA, and installs [the pinned dependencies](requirements-colab.txt) alongside Colab's PyTorch. It saves the console, session history, `rollouts.jsonl`, and `update.json` under `artifacts/fixed8.<run-id>/`, including available logs after a driver failure. It releases the VM on exit. A passing result has a mixed group, an inactive ratio clip, a finite nonzero gradient, and a measured parameter change after one optimizer step. If all groups are uniform, the summary records the zero-gradient step and marks the smoke as failed. [Official Colab CLI](https://github.com/googlecolab/google-colab-cli)
 
 ## Project record
 

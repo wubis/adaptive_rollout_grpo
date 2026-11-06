@@ -1,0 +1,4 @@
+{"prompt_id":"math-algebra-train-0","role":"update","problem":"Find $a+b$ if $f$ is continuous, where $f(x)=ax+3$ for $x>2$, $f(x)=x-5$ for $-2 ≤ x ≤ 2$, and $f(x)=2x-b$ for $x<-2$.","gold_answer":"0"}
+{"prompt_id":"math-algebra-train-3","role":"update","problem":"Compute the ceiling of $3(6-1/2)$.","gold_answer":"17"}
+{"prompt_id":"math-algebra-train-5","role":"update","problem":"Give the center of the circle $x^2-6x+y^2+2y=9$ as an ordered pair.","gold_answer":"(3,-1)"}
+{"prompt_id":"math-algebra-train-7","role":"evaluation","problem":"Substitute $x=2$ and $y=5$ into $(x^4+2y^2)/6$ and simplify.","gold_answer":"11"}
