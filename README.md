@@ -4,7 +4,7 @@ This project studies how to spend a fixed generation budget when post-training a
 
 When all eight answers are correct or all eight are wrong, their relative advantages are zero. A group with both outcomes gives GRPO a reward contrast to learn from. The planned experiment compares giving the next four rollouts to a fresh prompt versus giving them to a prompt whose previous answers all received the same reward. The comparison holds the generated-token budget fixed because completions can differ substantially in length.
 
-**Current status.** The fixed-8 smoke test and paired generation-cap comparison ran on a Colab A100 with Qwen2.5-Math-1.5B. The bounded 384-token pilot stopped before training after the fresh grader review caught a missed correct polynomial. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the research design and experiment record.
+**Current status.** The bounded 384-token pilot completed four fixed-8 GRPO updates on a Colab A100 with Qwen2.5-Math-1.5B. The audited grader includes a narrow fallback for explicit unboxed polynomials. Paired validation was 8/8 at both endpoints. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the research design and experiment record.
 
 ## Quick start
 
@@ -67,9 +67,9 @@ uv run --no-project --with 'math-verify[antlr4_13_2]==0.9.0' \
 
 Use the same `PYTHONPATH` kernel-client workaround as above if the CUDA connection fails on CLI 0.7.5. The runner saves `config.json` before provisioning. It pauses after the eight greedy validation answers and downloads `before_rollouts.jsonl` and `before_pilot.json`. Compare the extracted answers and scores against the completions and gold answers in the config. Type `continue` within 180 seconds if the grader check passes, or `stop` to capture the logs and release the VM.
 
-The pilot uses the pinned policy and split in [pilot_math.json](pilot_math.json), with at most four optimizer steps and 36,864 generated training tokens. The same eight prompts are evaluated greedily before and after training at the 384-token cap. The full logs are under `artifacts/fixed8.<run-id>/`. Read `pilot.json` for per-step and cumulative training metrics, separate validation scores and token counts, timings, and peak memory. Read `rollouts.jsonl` for raw completions, token IDs, truncation, and the grader's selected answer and extraction source. The runner also saves the console, CUDA check, and session history.
+The pilot uses the pinned policy and split in [pilot_math.json](pilot_math.json), with at most four optimizer steps and 36,864 generated training tokens. The same eight prompts are evaluated greedily before and after training at the 384-token cap. The full logs are under `artifacts/fixed8.<run-id>/`. Read `pilot.json` for per-step and cumulative training metrics, separate validation scores and token counts, timings, and peak memory. Read `rollouts.jsonl` for raw completions, token IDs, truncation, and the grader's selected answer and extraction source. The runner downloads `step-<n>.*` log snapshots after each update and saves the console, CUDA check, and session history.
 
-Run `fixed8.e8wyTlUY` reached the baseline review. Its row-level diagnosis is in `artifacts/fixed8.e8wyTlUY/grader-audit.jsonl`.
+The completed run is in `artifacts/fixed8.KSQmiIPa/`. Its `grader-audit.jsonl` covers both validation endpoints. The offline polynomial audit is in `artifacts/fixed8.polynomial-review/`.
 
 ## Reading a smoke run
 

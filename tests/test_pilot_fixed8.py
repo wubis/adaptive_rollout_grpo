@@ -21,6 +21,7 @@ class PilotTests(unittest.TestCase):
             dict(plan["training"][0], prompt_id="different-id",
                  problem="  " + plan["training"][0]["problem"].upper() + "  "),
             smoke_rows[0],
+            dict(plan["validation"][0], prompt_id=plan["prior_validation_ids"][0]),
         ):
             with self.subTest(duplicate=duplicate["prompt_id"]):
                 invalid = deepcopy(plan)
@@ -68,7 +69,8 @@ class PilotTests(unittest.TestCase):
                 collect_prompt(lambda *a, **k: (None, [completion] * count), None, None,
                                prompt, "gold", stats, log, phase, step=step)
                 self.assertEqual(grader.call_count, count)
-                grader.assert_called_with(completion.text, prompt["problem"], "gold", truncated=True)
+                grader.assert_called_with(completion.text, prompt["problem"], "gold",
+                                          truncated=True, allow_polynomial=True)
                 self.assertEqual(stats["generated_tokens"], count)
                 self.assertEqual(stats["truncated"], count)
                 self.assertEqual(len(log.getvalue().splitlines()), count)

@@ -84,52 +84,62 @@
   ],
   "validation": [
     {
-      "prompt_id": "math-algebra-train-645",
-      "problem": "Find the fraction that equals $0.\\overline{4}$.",
-      "level": "Level 2",
-      "gold_answer": "\\frac{4}{9}"
-    },
-    {
-      "prompt_id": "math-algebra-train-139",
-      "problem": "If $x = \\frac34$ and $y = \\frac43$ , find the value of $\\frac12x^6y^7$.",
-      "level": "Level 2",
-      "gold_answer": "\\frac{2}{3}"
-    },
-    {
-      "prompt_id": "math-algebra-train-31",
-      "problem": "The first and thirteenth terms of an arithmetic sequence are 5 and 29, respectively. What is the fiftieth term?",
+      "prompt_id": "math-algebra-train-4",
+      "problem": "Sam is hired for a 20-day period. On days that he works, he earns $\\$$60. For each day that he does not work, $\\$$30 is subtracted from his earnings. At the end of the 20-day period, he received $\\$$660. How many days did he not work?",
       "level": "Level 3",
-      "gold_answer": "103"
+      "gold_answer": "6"
     },
     {
-      "prompt_id": "math-algebra-train-114",
-      "problem": "Evaluate $\\left\\lceil\\sqrt{140}\\right\\rceil$.",
+      "prompt_id": "math-algebra-train-1420",
+      "problem": "Evaluate $\\lfloor-2.54\\rfloor+\\lceil25.4\\rceil$.",
+      "level": "Level 3",
+      "gold_answer": "23"
+    },
+    {
+      "prompt_id": "math-algebra-train-617",
+      "problem": "Factor the expression $3x(x+1) + 7(x+1)$.",
+      "level": "Level 3",
+      "gold_answer": "(3x+7)(x+1)"
+    },
+    {
+      "prompt_id": "math-algebra-train-664",
+      "problem": "The value of $\\log_{10}{17}$ is between the consecutive integers $a$ and $b$.  Find $a+b$.",
       "level": "Level 2",
-      "gold_answer": "12"
+      "gold_answer": "3"
     },
     {
-      "prompt_id": "math-algebra-train-1586",
-      "problem": "Evaluate $\\left\\lfloor \\left\\lceil \\left(\\frac{13}{7}\\right)^2\\right\\rceil+\\frac{17}{4}\\right\\rfloor$.",
+      "prompt_id": "math-algebra-train-571",
+      "problem": "A motel bills its customers by charging a flat fee for the first night and then adding on a fixed amount for every night thereafter. If it costs George $\\$155$ to stay in the motel for 3 nights and Noah $\\$290$ to stay in the motel for 6 nights, how much is the flat fee for the first night?",
       "level": "Level 3",
-      "gold_answer": "8"
+      "gold_answer": "\\$65"
     },
     {
-      "prompt_id": "math-algebra-train-1659",
-      "problem": "If $f(x)$ and $g(x)$ are polynomials such that $f(x) + g(x) = -2 + x,$ then what is $g(x)$ if $f(x) = x^3 - 2x - 2$?",
+      "prompt_id": "math-algebra-train-1007",
+      "problem": "What is the distance, in units, between the points $(3, -2)$ and $(7, 5)$?",
       "level": "Level 3",
-      "gold_answer": "-x^3 + 3x"
+      "gold_answer": "\\sqrt{65}"
     },
     {
-      "prompt_id": "math-algebra-train-43",
-      "problem": "Express $\\frac{0.\\overline{666}}{1.\\overline{333}}$ as a common fraction.",
+      "prompt_id": "math-algebra-train-578",
+      "problem": "The sum of two numbers is $12$ and their difference is $20$. What is the smaller number?",
+      "level": "Level 1",
+      "gold_answer": "-4"
+    },
+    {
+      "prompt_id": "math-algebra-train-217",
+      "problem": "Let $f(x)=x^2-2x$. What is the value of $f(f(f(f(f(f(-1))))))$?",
       "level": "Level 3",
-      "gold_answer": "\\frac{1}{2}"
-    },
-    {
-      "prompt_id": "math-algebra-train-393",
-      "problem": "The force needed to loosen a bolt varies inversely with the length of the handle of the wrench used. A wrench with a handle length of 9 inches requires 375 pounds of force to loosen a certain bolt. A wrench of 15 inches will require how many pounds of force to loosen the same bolt?",
-      "level": "Level 2",
-      "gold_answer": "225"
+      "gold_answer": "3"
     }
+  ],
+  "prior_validation_ids": [
+    "math-algebra-train-645",
+    "math-algebra-train-139",
+    "math-algebra-train-31",
+    "math-algebra-train-114",
+    "math-algebra-train-1586",
+    "math-algebra-train-1659",
+    "math-algebra-train-43",
+    "math-algebra-train-393"
   ]
 }

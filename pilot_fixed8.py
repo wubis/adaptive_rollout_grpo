@@ -13,6 +13,7 @@ from verifier import grade_final_answer, parse_answer
 PLAN = Path(__file__).with_name("pilot_math.json")
 SMOKE_FIXTURE = Path(__file__).with_name("validation_smoke.jsonl")
 MAX_NEW_TOKENS = 384
+VERIFIER = "grade_final_answer+polynomial-v1"
 REVIEW_TIMEOUT_SECONDS = 300
 DECODING = {
     "max_new_tokens": MAX_NEW_TOKENS,
@@ -23,6 +24,7 @@ DECODING = {
 
 def check_splits(plan, smoke_rows):
     seen_ids = {row["prompt_id"] for row in smoke_rows}
+    seen_ids.update(plan.get("prior_validation_ids", ()))
     seen_problems = {" ".join(row["problem"].casefold().split()) for row in smoke_rows}
     for name in ("training", "validation"):
         if not plan[name]:
@@ -52,12 +54,13 @@ def load_plan(path):
         if not parse_answer(row["gold_answer"]):
             raise ValueError(f"Unparseable gold answer: {row['prompt_id']}")
     plan["decoding"] = DECODING
+    plan["verifier"] = VERIFIER
     return plan
 
 
 def grade_completion(prompt, completion, gold):
     return grade_final_answer(
-        completion.text, prompt["problem"], gold, truncated=completion.truncated,
+        completion.text, prompt["problem"], gold, truncated=completion.truncated, allow_polynomial=True,
     )
 
 
@@ -147,14 +150,16 @@ def run(plan, output_dir, review_path):
         "packages": {name: version(name) for name in ("torch", "transformers", "math-verify")},
         "optimizer": "AdamW", "learning_rate": LEARNING_RATE, "weight_decay": 0, "kl_beta": 0,
         "clip_epsilon": CLIP_EPSILON, "logprob_tolerance": LOGPROB_TOLERANCE,
-        "advantage_epsilon": ADVANTAGE_EPSILON, "verifier": "grade_final_answer",
+        "advantage_epsilon": ADVANTAGE_EPSILON, "verifier": VERIFIER,
         "updates": updates, "validation": validation,
     }
 
     def save():
         metrics["training"] = training_totals(updates)
         metrics["peak_cuda_allocated_bytes"] = torch.cuda.max_memory_allocated()
-        (output_dir / "pilot.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+        temp = output_dir / "pilot.tmp"
+        temp.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+        temp.replace(output_dir / "pilot.json")
 
     def evaluate(phase, log):
         stats = validation[phase] = new_collection_stats()

@@ -121,10 +121,13 @@ process = subprocess.Popen(
     text=True,
 )
 
-def drain_fixed8(review=False):
+def drain_fixed8(review=False, checkpoint=False):
     for line in process.stdout:
         print(line, end="", flush=True)
         if review and line.strip() == "FIXED8_REVIEW_READY":
+            return
+        if checkpoint and line.startswith("Step ") and " completed: " in line:
+            print("FIXED8_CHECKPOINT_READY", flush=True)
             return
     if process.wait() != 0:
         raise SystemExit(process.returncode)
@@ -146,15 +149,28 @@ if (( pilot && driver_status == 0 )); then
         fi
     fi
     printf '%s\n' "$decision" > "$run_dir/grader-review.txt"
-    colab_cli exec -s "$session" --timeout 600 <<PY 2>&1 | tee -a "$run_dir/console.txt" || driver_status=$?
+    colab_cli exec -s "$session" --timeout 180 <<PY 2>&1 | tee -a "$run_dir/console.txt" || driver_status=$?
 from pathlib import Path
 
 review_file = Path("/content/grader-review.txt")
 review_file.with_suffix(".tmp").write_text("$decision\n", encoding="utf-8")
 review_file.with_suffix(".tmp").replace(review_file)
-drain_fixed8()
+drain_fixed8(checkpoint=True)
 PY
 fi
+
+checkpoint=0
+while (( pilot && driver_status == 0 && checkpoint < $(grep -Fxc FIXED8_CHECKPOINT_READY "$run_dir/console.txt" || true) )); do
+    checkpoint=$((checkpoint + 1))
+    for file in "$summary" rollouts.jsonl; do
+        if ! colab_cli download -s "$session" "/content/$file" "$run_dir/step-$checkpoint.$file"; then
+            printf 'Could not retrieve checkpoint %s for step %s.\n' "$file" "$checkpoint" >&2
+        fi
+    done
+    colab_cli exec -s "$session" --timeout 180 <<'PY' 2>&1 | tee -a "$run_dir/console.txt" || driver_status=$?
+drain_fixed8(checkpoint=True)
+PY
+done
 
 download_status=0
 for file in rollouts.jsonl "$summary"; do

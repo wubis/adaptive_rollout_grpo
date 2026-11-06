@@ -95,3 +95,49 @@ class VerifierTests(unittest.TestCase):
             "Compute the sum.", parse_answer("17"),
         )
         self.assertEqual((grade.source, grade.answer, grade.reward), ("explicit", "17", 1))
+
+    def test_polynomial_fallback_accepts_explicit_conclusions(self):
+        for problem, text, gold_value in (
+            ("What is $p(t)$?", "Therefore, the polynomial $p(t)$ is $2t^3-t+7$.", "7-t+2t^3"),
+            ("Expand the product.", r"Final answer: \(2t^{3}-t+7\).", "2t^3-t+7"),
+            ("Expand the product.", "The answer is $-4z+3$.", "3-4z"),
+        ):
+            with self.subTest(text=text):
+                gold = parse_answer(gold_value)
+                self.assertEqual(grade_final_answer(text, problem, gold).status, "unparseable")
+                grade = grade_final_answer(text, problem, gold, allow_polynomial=True)
+                self.assertEqual((grade.source, grade.status), ("polynomial", "correct"))
+
+    def test_polynomial_fallback_rejects_ambiguous_or_incomplete_claims(self):
+        gold = parse_answer("2t^3-t+7")
+        for text, truncated in (
+            ("Therefore, the polynomial $q(t)$ is $2t^3-t+7$.", False),
+            ("Therefore, the polynomial $p(t)$ is $2x^3-x+7$.", False),
+            ("We derived $2t^3-t+7$.", False),
+            ("Final answer: $2t^3-t+7$. That was only the first term.", False),
+            ("Final answer: $2t^3-t+7$ or $2t^3-t-7$.", False),
+            ("Final answer: $2t^3-t+7=7-t+2t^3$.", False),
+            ("Final answer: $2t^3-t+s+7$.", False),
+            ("Final answer: $2t^3-t^{-1}+7$.", False),
+            ("Final answer: $2t^3-t+7", True),
+            ("Final answer: $2t^3-t+7$", True),
+            ("Question 2: Find another polynomial.\nFinal answer: $2t^3-t+7$.", False),
+        ):
+            with self.subTest(text=text):
+                grade = grade_final_answer(
+                    text, "What is $p(t)$?", gold, truncated=truncated, allow_polynomial=True,
+                )
+                self.assertEqual((grade.status, grade.reward), ("unparseable", 0))
+
+    def test_polynomial_equivalence_and_precedence(self):
+        problem = "What is $p(t)$?"
+        gold = parse_answer("2t^3-t+7")
+        final = "Final answer: $2t^3-t+7$."
+        for text, source, status in (
+            (final + "\nQuestion 2: Find the next answer.\n" + r"\boxed{3}", "polynomial", "correct"),
+            (r"\boxed{3}" + "\n" + final, "boxed", "incorrect"),
+            ("Final answer: $2t^3-t-7$.", "polynomial", "incorrect"),
+        ):
+            with self.subTest(text=text):
+                grade = grade_final_answer(text, problem, gold, truncated=True, allow_polynomial=True)
+                self.assertEqual((grade.source, grade.status), (source, status))
