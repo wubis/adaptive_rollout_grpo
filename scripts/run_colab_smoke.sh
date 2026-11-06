@@ -6,15 +6,22 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 gpu=${1:-A100}
 case "$gpu" in
     A100|H100|L4|T4|G4) ;;
-    *) printf 'Usage: bash scripts/run_colab_smoke.sh [A100|H100|L4|T4|G4] [--compare-caps]\n' >&2; exit 2 ;;
+    *) printf 'Usage: bash scripts/run_colab_smoke.sh [A100|H100|L4|T4|G4] [--compare-caps|--pilot]\n' >&2; exit 2 ;;
 esac
 
 upload_files=(fixed8.py verifier.py smoke_fixed8.py validation_smoke.jsonl)
+pilot=0
 case "${2:-}" in
     '') driver=smoke_fixed8.py; summary=update.json ;;
     --compare-caps)
         driver=compare_fixed8_caps.py
         summary=cap_comparison.json
+        upload_files+=("$driver")
+        ;;
+    --pilot)
+        pilot=1
+        driver=pilot_fixed8.py
+        summary=pilot.json
         upload_files+=("$driver")
         ;;
     *) printf 'Unknown mode: %s\n' "$2" >&2; exit 2 ;;
@@ -46,9 +53,13 @@ mkdir -p artifacts
 run_dir=$(mktemp -d "$PWD/artifacts/fixed8.XXXXXXXX")
 session="fixed8-${run_dir##*.}"
 printf 'Colab session %s\nLocal logs %s\n' "$session" "$run_dir"
+if (( pilot )); then
+    # The checked config already contains the complete split manifest.
+    python3 -B "$driver" --prepare --output-dir "$run_dir"
+fi
 colab_cli version | tee "$run_dir/cli-version.txt"
 colab_cli sessions >/dev/null
-colab_cli new -s "$session" --gpu "$gpu"
+colab_cli new -s "$session" --gpu "$gpu" 2>&1 | tee "$run_dir/provision.txt"
 
 cleanup() {
     local status=$?
@@ -90,25 +101,60 @@ colab_cli install -s "$session" -r requirements-colab.txt 2>&1 | tee "$run_dir/i
 for file in "${upload_files[@]}"; do
     colab_cli upload -s "$session" "$file" "/content/$file"
 done
+if (( pilot )); then
+    colab_cli upload -s "$session" "$run_dir/config.json" /content/config.json
+fi
 
-smoke_status=0
-colab_cli exec -s "$session" --timeout 600 <<PY 2>&1 | tee "$run_dir/console.txt" || smoke_status=$?
+driver_status=0
+colab_cli exec -s "$session" --timeout 600 <<PY 2>&1 | tee "$run_dir/console.txt" || driver_status=$?
 import subprocess
 import sys
 
-with subprocess.Popen(
-    [sys.executable, "-u", "$driver"],
+command = [sys.executable, "-u", "$driver"]
+if $pilot:
+    command.extend(["--plan", "config.json"])
+process = subprocess.Popen(
+    command,
     cwd="/content",
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     text=True,
-) as process:
+)
+
+def drain_fixed8(review=False):
     for line in process.stdout:
         print(line, end="", flush=True)
+        if review and line.strip() == "FIXED8_REVIEW_READY":
+            return
     if process.wait() != 0:
         raise SystemExit(process.returncode)
-print("FIXED8_DRIVER_OK")
+    print("FIXED8_DRIVER_OK")
+
+drain_fixed8(review=bool($pilot))
 PY
+
+if (( pilot && driver_status == 0 )); then
+    decision=stop
+    if grep -Fxq 'FIXED8_REVIEW_READY' "$run_dir/console.txt" &&
+        colab_cli download -s "$session" /content/rollouts.jsonl "$run_dir/before_rollouts.jsonl" &&
+        colab_cli download -s "$session" /content/pilot.json "$run_dir/before_pilot.json"; then
+        printf '\nReview all baseline answers in %s and compare with the gold answers in config.json.\n' \
+            "$run_dir/before_rollouts.jsonl"
+        printf 'Type continue within 180 seconds if the grader check passes, or stop to save the logs and exit.\n'
+        if read -r -t 180 response && [[ "$response" == continue ]]; then
+            decision=continue
+        fi
+    fi
+    printf '%s\n' "$decision" > "$run_dir/grader-review.txt"
+    colab_cli exec -s "$session" --timeout 600 <<PY 2>&1 | tee -a "$run_dir/console.txt" || driver_status=$?
+from pathlib import Path
+
+review_file = Path("/content/grader-review.txt")
+review_file.with_suffix(".tmp").write_text("$decision\n", encoding="utf-8")
+review_file.with_suffix(".tmp").replace(review_file)
+drain_fixed8()
+PY
+fi
 
 download_status=0
 for file in rollouts.jsonl "$summary"; do
@@ -121,11 +167,11 @@ for file in rollouts.jsonl "$summary"; do
     fi
 done
 
-if (( smoke_status != 0 )); then
-    exit "$smoke_status"
+if (( driver_status != 0 )); then
+    exit "$driver_status"
 fi
 if ! grep -Fxq 'FIXED8_DRIVER_OK' "$run_dir/console.txt"; then
-    printf 'The smoke driver did not complete. See console.txt.\n' >&2
+    printf 'The driver did not complete. See console.txt.\n' >&2
     exit 1
 fi
 exit "$download_status"

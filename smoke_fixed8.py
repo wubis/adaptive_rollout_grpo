@@ -12,7 +12,7 @@ from time import perf_counter
 import torch
 from torch.nn import functional as F
 
-from fixed8 import ADVANTAGE_EPSILON, GROUP_SIZE, group_advantages
+from fixed8 import ADVANTAGE_EPSILON, GROUP_SIZE, SAMPLING, group_advantages
 from verifier import boxed_answer as boxed_answer, parse_answer, score_answer
 
 
@@ -21,7 +21,6 @@ MODEL_REVISION = "4a83ca6e4526a4f2da3aa259ec36c259f66b2ab2"
 CLIP_EPSILON = 0.2
 LOGPROB_TOLERANCE = 0.01
 LEARNING_RATE = 1e-6
-SAMPLING = {"temperature": 1.0, "top_p": 1.0, "top_k": 0}
 
 
 def load_policy():
@@ -108,8 +107,14 @@ def completion_logps(model, prompt_ids, completion_ids):
     return F.log_softmax(logits, dim=-1).gather(1, completion_ids[:, None]).squeeze(1)
 
 
-def update_policy(model, groups, metrics):
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=0, foreach=False)
+def make_optimizer(model):
+    return torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=0, foreach=False)
+
+
+def update_policy(model, groups, metrics, *, optimizer=None, require_mixed=True):
+    if optimizer is None:
+        optimizer = make_optimizer(model)
+    optimizer.zero_grad(set_to_none=True)
     denominator = len(groups) * GROUP_SIZE
     update_start = perf_counter()
     for prompt_ids, completions, advantages in groups:
@@ -154,9 +159,9 @@ def update_policy(model, groups, metrics):
         parameter_abs_change=abs(after - before),
         update_seconds=perf_counter() - update_start,
     )
-    if not metrics["mixed_groups"]:
+    if require_mixed and not metrics["mixed_groups"]:
         raise RuntimeError("All rollout groups were uniform. The step had no reward gradient.")
-    if not math.isfinite(after) or before == after:
+    if not math.isfinite(after) or (metrics["mixed_groups"] and before == after):
         raise RuntimeError("The checked parameter did not make a finite update")
 
 

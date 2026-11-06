@@ -4,6 +4,7 @@ from statistics import mean, pstdev
 
 GROUP_SIZE = 8
 ADVANTAGE_EPSILON = 1e-6
+SAMPLING = {"temperature": 1.0, "top_p": 1.0, "top_k": 0}
 
 
 def group_advantages(rewards: Sequence[int]) -> list[float]:

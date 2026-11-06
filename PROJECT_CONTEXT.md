@@ -1,6 +1,6 @@
 # Adaptive Rollout Budgeting for GRPO
 
-**Status, November 6, 2026.** The fixed-8 smoke test, paired generation-cap comparison, and offline verifier review are complete. Freeze the reviewed final-answer fallback for the short fixed-8 pilot at a provisional 384-token cap. Confirm the contribution with the TA in parallel. Use frozen-policy replay to decide whether to proceed to online training.
+**Status, November 6, 2026.** The bounded fixed-8 pilot reached fresh validation on a Colab A100. The grader missed a correct unboxed polynomial, so the run stopped before training. Audit a narrow polynomial extraction rule offline before retrying the 384-token pilot.
 
 **Research question.** At the same generated-token budget, does using predicted continuation costs to allocate the next four rollouts between fresh prompts and uniform-reward GRPO groups improve held-out math accuracy?
 
@@ -128,4 +128,32 @@ All 12 reward changes were hand-checked and went from 0 to 1. The paired caps sh
 
 **Limitations and pilot decision.** The primary set had no observed false positives after reviewing its credited answers. `math-algebra-train-3` index 3 still received zero at both paired caps. Its aligned derivation reaches 17 for the original question without a final-answer marker, and the fallback abstains on bare derivations. The new rule also removes two previously parseable placeholders, a phantom number in the smoke update and a text placeholder at 192. Boundaries rely on recognizable structure. Unmarked problem changes and unsupported answer formats remain limitations. Freeze this rule for the short pilot at 384 and spot-check its rewards on fresh validation prompts. The primary gains all come from one prompt, so treat the review as evidence for this pilot configuration.
 
-Update status and next steps here. Record the TA's scope decision and link the pilot and replay configs, frozen comparison protocol, metrics, final plots, report, and slides as they become available. The frozen protocol should include trainer and data revisions, split sizes, calibration tables and estimator, replay gates, decoding limits, dispatch width, window and run caps, hardware allocation, and seeds. Probe size, group cap, and alternative utilities are secondary experiments once the main comparison is feasible.
+### November 6, 2026 · Bounded fixed-8 pilot
+
+**Frozen data.** The manifest stores the 12 training and eight validation rows, their zero-based source IDs, the dataset revision and file digest, and the run bounds. Both splits use levels 1–3 of the MATH Algebra training partition. To reproduce the selection, start with ascending source row indices, exclude smoke source rows 0, 3, 5, and 7, and shuffle the eligible indices with Python `random.Random(41)`. Walk the result in order, skipping repeated case- and whitespace-normalized prompt text and rows without a parseable last boxed gold answer. Take the first 12 eligible rows for training and the next eight for validation. The launch check rejects shared IDs and normalized prompt text across both splits and the smoke fixture. Paraphrase detection and other MATH subjects fall outside this audit. [Pilot manifest](pilot_math.json) · [Pinned MATH source](https://huggingface.co/datasets/EleutherAI/hendrycks_math/tree/33229490b016455e76e3bdf1a14249ce207bf8b6/algebra)
+
+**Frozen run.** The runner saves the checked `config.json` before provisioning. The pilot uses the smoke checkpoint and FP32 eager attention, seed 17, and a 384-token generation cap. Three prompts contribute eight samples each per update at temperature 1, top-p 1, and top-k 0. The four-step limit and 36,864-token training budget admit four batches at their worst-case lengths. Actual usage counts completion tokens through EOS or the cap, including truncated completions and uniform groups. Each attempt reserves up to 9,216 tokens. Validation has its own counters and uses one greedy answer per prompt with identical before-and-after settings. The run pauses before training for a fresh answer audit. The training path carries one AdamW optimizer across steps and retains the smoke settings and loss weighting. Uniform groups have zero reward advantage and still contribute to the group denominator and token counts. Prior AdamW momentum can carry through an all-uniform step.
+
+All three historical artifact directories were available locally. The 73-completion offline rescore reproduced both saved outputs byte for byte. The local suite passed 20 tests, including pilot checks for grader wiring, split separation, and generated and optimized token totals across successful and failed attempts.
+
+**Colab outcome.** Run `fixed8.e8wyTlUY` used an A100-SXM4-40GB with PyTorch 2.11.0+cu130, CUDA 13.0, Transformers 4.57.6, and Math-Verify 0.9.0. The CUDA tensor check passed. The fresh answer review stopped the run before the first training rollout.
+
+| Metric | Observed |
+| --- | --- |
+| Optimizer updates attempted / completed | 0 / 0 |
+| Generated / optimized training tokens | 0 / 0 |
+| Training completions / truncated / parseable | 0 / 0 / 0 |
+| Mixed training groups | 0 collected |
+| Training generation / update time | 0 / 0 s |
+| Baseline validation | 6/8 verified correct, 7/8 by manual inspection |
+| Baseline validation tokens / truncation / parseability | 1,894 tokens, 2/8 truncated, 6/8 parseable |
+| Baseline generation / peak CUDA allocation | 73.65 s / 5.79 GiB |
+| Post-update validation and update memory | Unmeasured |
+
+**Grader review.** The reviewed grader scored 6/8 versus 5/8 with the historical box-only grader. On `math-algebra-train-645` it kept the correct boxed $4/9$ before a `Human:` boundary and ignored the later boxed $2$. On `math-algebra-train-1659` the completion ended naturally with the correct $g(x)=-x^3+3x$ in display math and concluding prose. Both rules abstained. Wrapping the same polynomial in a box passed offline, which locates the failure in extraction. The explicit fallback only accepts scalars, fractions, and tuples. On `math-algebra-train-139` the cap cut off the derivation before the requested answer. Manual inspection agreed with the reviewed grader on the other seven prompts. The baseline is a diagnostic on eight examples, and the run has no before-and-after accuracy comparison.
+
+**Cost and next milestone.** Observed 384-token greedy validation throughput was 25.7 completion tokens/s, or about 10.8 A100 GPU-hours per million greedy validation tokens at that rate. The historical 192-token fixed-8 smoke gives a separate training reference of about 1.91 A100 GPU-hours per million training tokens (1.61 generation and 0.31 update), excluding validation and setup. The 384-token fixed-8 training rate and memory fit still need measurement. Before another GPU launch, audit a narrow polynomial extraction rule offline on this failure, the historical rollouts, and independent positive and negative cases. Freeze the audited rule and a fresh validation split, then retry the bounded pilot with the same cap and training budget.
+
+The ignored `artifacts/fixed8.e8wyTlUY/` directory contains the prelaunch `config.json`, raw `rollouts.jsonl`, `grader-audit.jsonl`, `pilot.json`, CUDA and console output, and session history.
+
+Record the TA's scope decision and link the replay config, frozen comparison protocol, metrics, final plots, report, and slides as they become available. The frozen comparison protocol should include trainer and data revisions, split sizes, calibration tables and estimator, replay gates, decoding limits, dispatch width, window and run caps, hardware allocation, and seeds. Probe size, group cap, and alternative utilities are secondary experiments once the main comparison is feasible.
