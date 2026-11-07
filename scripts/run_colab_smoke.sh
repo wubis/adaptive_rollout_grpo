@@ -6,13 +6,15 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 gpu=${1:-A100}
 case "$gpu" in
     A100|H100|L4|T4|G4) ;;
-    *) printf 'Usage: bash scripts/run_colab_smoke.sh [A100|H100|L4|T4|G4] [--compare-caps|--pilot|--replay-calibration|--replay-held-out]\n' >&2; exit 2 ;;
+    *) printf 'Usage: bash scripts/run_colab_smoke.sh [A100|H100|L4|T4|G4] [--compare-caps|--pilot|--replay-calibration|--replay-held-out frozen.json|--calibration-study|--calibration-study-resume run-directory]\n' >&2; exit 2 ;;
 esac
 
 upload_files=(fixed8.py verifier.py smoke_fixed8.py validation_smoke.jsonl)
 pilot=0
 replay_split=
 frozen_calibration=
+replay_plan=
+resume_dir=
 case "${2:-}" in
     '') driver=smoke_fixed8.py; summary=update.json ;;
     --compare-caps)
@@ -26,7 +28,7 @@ case "${2:-}" in
         summary=pilot.json
         upload_files+=("$driver")
         ;;
-    --replay-calibration|--replay-held-out)
+    --replay-calibration|--replay-held-out|--calibration-study|--calibration-study-resume)
         replay_split=calibration
         if [[ "$2" == --replay-held-out ]]; then
             replay_split=held_out
@@ -36,9 +38,15 @@ case "${2:-}" in
                 exit 2
             fi
         fi
+        if [[ "$2" == --calibration-study || "$2" == --calibration-study-resume ]]; then
+            replay_plan=calibration_study.json
+        fi
+        if [[ "$2" == --calibration-study-resume ]]; then
+            resume_dir=${3:?Pass the saved run directory to resume}
+        fi
         driver=collect_replay.py
         summary=collection.json
-        upload_files+=("$driver" replay_feasibility.py pilot_fixed8.py pilot_math.json)
+        upload_files+=("$driver" replay_feasibility.py pilot_fixed8.py pilot_math.json verifier_v2.py replay_feasibility.json)
         ;;
     *) printf 'Unknown mode: %s\n' "$2" >&2; exit 2 ;;
 esac
@@ -78,11 +86,26 @@ if (( pilot )); then
     python3 -B "$driver" --prepare --output-dir "$run_dir"
 elif [[ -n "$replay_split" ]]; then
     replay_args=(--split "$replay_split")
+    if [[ -n "$replay_plan" ]]; then
+        replay_args+=(--plan "$replay_plan")
+    fi
+    if [[ -n "$resume_dir" ]]; then
+        replay_args+=(--resume-dir "$resume_dir")
+    fi
     if [[ -n "$frozen_calibration" ]]; then
         replay_args+=(--frozen "$frozen_calibration")
     fi
     python3 -B "$driver" "${replay_args[@]}" --prepare --output-dir "$run_dir"
 fi
+python3 -B - "$run_dir" "${upload_files[@]}" requirements-colab.txt <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+directory = Path(sys.argv[1])
+sources = {name: hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in sys.argv[2:]}
+if (directory / "config.json").exists():
+    sources["config.json"] = hashlib.sha256((directory / "config.json").read_bytes()).hexdigest()
+(directory / "source-provenance.json").write_text(json.dumps(sources, indent=2) + "\n")
+PY
 colab_cli version | tee "$run_dir/cli-version.txt"
 colab_cli sessions >/dev/null
 colab_cli new -s "$session" --gpu "$gpu" 2>&1 | tee "$run_dir/provision.txt"
@@ -133,8 +156,23 @@ fi
 if [[ -n "$frozen_calibration" ]]; then
     colab_cli upload -s "$session" "$frozen_calibration" /content/frozen.json
 fi
+if [[ -n "$resume_dir" ]]; then
+    python3 -B - "$resume_dir" "$run_dir/resume.zip" <<'PY'
+from pathlib import Path
+import sys, zipfile
+directory = Path(sys.argv[1])
+with zipfile.ZipFile(sys.argv[2], "x") as bundle:
+    for name in ("config.json", "collection.json", "rollouts.jsonl"):
+        bundle.write(directory / name, name)
+PY
+    colab_cli upload -s "$session" "$run_dir/resume.zip" /content/resume.zip
+fi
 
 driver_status=0
+if [[ -n "$replay_split" ]]; then
+    source scripts/poll_colab_replay.sh
+    exit "$driver_status"
+fi
 colab_cli exec -s "$session" --timeout 600 <<PY 2>&1 | tee "$run_dir/console.txt" || driver_status=$?
 import subprocess
 import sys

@@ -29,10 +29,13 @@ def load_plan(path):
     pilot = read_json(PLAN.with_name("pilot_math.json"))
     smoke = [json.loads(line) for line in PLAN.with_name("validation_smoke.jsonl").read_text().splitlines()]
     existing = smoke + pilot["training"] + pilot["validation"]
+    if plan.get("calibration_only"):
+        previous = read_json(PLAN)
+        existing += previous["calibration"] + previous["held_out"]
     ids = {row["prompt_id"] for row in existing} | set(pilot["prior_validation_ids"])
     problems = {normalized_problem(row) for row in existing}
     for split in ("calibration", "held_out"):
-        if not plan[split]:
+        if not plan[split] and not (split == "held_out" and plan.get("calibration_only")):
             raise ValueError(f"Empty replay split: {split}")
         for row in plan[split]:
             problem = normalized_problem(row)

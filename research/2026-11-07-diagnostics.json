@@ -1,0 +1,544 @@
+{
+  "scope": "post_hoc_calibration_diagnostics_only",
+  "cache_sha256": "a4efe6183b39f5cef45edd3cda39f55b1e3c5d6cbb8776bc9b0bdf5990ee02ea",
+  "saved_development_report_reproduced_exactly": true,
+  "completions": 960,
+  "generated_tokens": 261309,
+  "truncated": 377,
+  "verifier_statuses": {
+    "correct": 471,
+    "incorrect": 208,
+    "unparseable": 281
+  },
+  "uniform_summary": {
+    "0": {
+      "prompts": 9,
+      "eventually_mixed": 4,
+      "first_opposite_status": {
+        "correct": 4
+      },
+      "initial_mean_completion_tokens": 313.6666666666667
+    },
+    "1": {
+      "prompts": 11,
+      "eventually_mixed": 11,
+      "first_opposite_status": {
+        "incorrect": 2,
+        "unparseable": 9
+      },
+      "initial_mean_completion_tokens": 208.36363636363637
+    }
+  },
+  "first_opposite_completions": [
+    {
+      "initial_outcome": 0,
+      "prompt_id": "math-algebra-train-505",
+      "completion_index": 4,
+      "verifier_status": "correct",
+      "truncated": false,
+      "answer_source": "boxed"
+    },
+    {
+      "initial_outcome": 0,
+      "prompt_id": "math-algebra-train-164",
+      "completion_index": 8,
+      "verifier_status": "correct",
+      "truncated": true,
+      "answer_source": "boxed"
+    },
+    {
+      "initial_outcome": 0,
+      "prompt_id": "math-algebra-train-995",
+      "completion_index": 5,
+      "verifier_status": "correct",
+      "truncated": false,
+      "answer_source": "boxed"
+    },
+    {
+      "initial_outcome": 0,
+      "prompt_id": "math-algebra-train-1442",
+      "completion_index": 4,
+      "verifier_status": "correct",
+      "truncated": true,
+      "answer_source": "boxed"
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-703",
+      "completion_index": 6,
+      "verifier_status": "incorrect",
+      "truncated": false,
+      "answer_source": "boxed"
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-938",
+      "completion_index": 6,
+      "verifier_status": "unparseable",
+      "truncated": true,
+      "answer_source": null
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-1267",
+      "completion_index": 4,
+      "verifier_status": "incorrect",
+      "truncated": true,
+      "answer_source": "boxed"
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-955",
+      "completion_index": 4,
+      "verifier_status": "unparseable",
+      "truncated": true,
+      "answer_source": null
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-692",
+      "completion_index": 10,
+      "verifier_status": "unparseable",
+      "truncated": false,
+      "answer_source": null
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-510",
+      "completion_index": 5,
+      "verifier_status": "unparseable",
+      "truncated": false,
+      "answer_source": null
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-113",
+      "completion_index": 6,
+      "verifier_status": "unparseable",
+      "truncated": true,
+      "answer_source": null
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-295",
+      "completion_index": 13,
+      "verifier_status": "unparseable",
+      "truncated": false,
+      "answer_source": null
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-974",
+      "completion_index": 10,
+      "verifier_status": "unparseable",
+      "truncated": false,
+      "answer_source": null
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-332",
+      "completion_index": 4,
+      "verifier_status": "unparseable",
+      "truncated": true,
+      "answer_source": null
+    },
+    {
+      "initial_outcome": 1,
+      "prompt_id": "math-algebra-train-349",
+      "completion_index": 4,
+      "verifier_status": "unparseable",
+      "truncated": false,
+      "answer_source": null
+    }
+  ],
+  "continuation_states": 35,
+  "actual_cost_fresh_ranking_changes": 1,
+  "cost_boundary_rows": [
+    {
+      "prompt_id": "math-algebra-train-160",
+      "state": "4:0",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 1224,
+      "observed_history_prediction": 1363.0,
+      "pooled_prediction": 1193.111111111111,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-160",
+      "state": "8:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1300,
+      "observed_history_prediction": 1293.5,
+      "pooled_prediction": 1226.6666666666667,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-160",
+      "state": "12:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1536,
+      "observed_history_prediction": 1295.6666666666667,
+      "pooled_prediction": 1291.3333333333333,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-703",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 1522,
+      "observed_history_prediction": 770.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": true
+    },
+    {
+      "prompt_id": "math-algebra-train-938",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 1118,
+      "observed_history_prediction": 817.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-1267",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 1151,
+      "observed_history_prediction": 859.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-505",
+      "state": "4:0",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 1121,
+      "observed_history_prediction": 1243.0,
+      "pooled_prediction": 1193.111111111111,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-164",
+      "state": "4:0",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 930,
+      "observed_history_prediction": 1171.0,
+      "pooled_prediction": 1193.111111111111,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-164",
+      "state": "8:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 971,
+      "observed_history_prediction": 1050.5,
+      "pooled_prediction": 1226.6666666666667,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-955",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 741,
+      "observed_history_prediction": 922.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-692",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 739,
+      "observed_history_prediction": 980.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-692",
+      "state": "8:1",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 1086,
+      "observed_history_prediction": 859.5,
+      "pooled_prediction": 1085.4444444444443,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-995",
+      "state": "4:0",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 1051,
+      "observed_history_prediction": 1264.0,
+      "pooled_prediction": 1193.111111111111,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-359",
+      "state": "4:0",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 1299,
+      "observed_history_prediction": 1536.0,
+      "pooled_prediction": 1193.111111111111,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-359",
+      "state": "8:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1536,
+      "observed_history_prediction": 1417.5,
+      "pooled_prediction": 1226.6666666666667,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-359",
+      "state": "12:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1103,
+      "observed_history_prediction": 1457.0,
+      "pooled_prediction": 1291.3333333333333,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-510",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 766,
+      "observed_history_prediction": 976.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-113",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 686,
+      "observed_history_prediction": 401.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-295",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 841,
+      "observed_history_prediction": 816.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-295",
+      "state": "8:1",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 597,
+      "observed_history_prediction": 828.5,
+      "pooled_prediction": 1085.4444444444443,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-295",
+      "state": "12:1",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1121,
+      "observed_history_prediction": 751.3333333333334,
+      "pooled_prediction": 1291.3333333333333,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-1686",
+      "state": "4:0",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 1156,
+      "observed_history_prediction": 1224.0,
+      "pooled_prediction": 1193.111111111111,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-1686",
+      "state": "8:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1199,
+      "observed_history_prediction": 1190.0,
+      "pooled_prediction": 1226.6666666666667,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-1686",
+      "state": "12:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1315,
+      "observed_history_prediction": 1193.0,
+      "pooled_prediction": 1291.3333333333333,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-6",
+      "state": "4:0",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 1320,
+      "observed_history_prediction": 1369.0,
+      "pooled_prediction": 1193.111111111111,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-6",
+      "state": "8:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1107,
+      "observed_history_prediction": 1344.5,
+      "pooled_prediction": 1226.6666666666667,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-6",
+      "state": "12:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1536,
+      "observed_history_prediction": 1265.3333333333333,
+      "pooled_prediction": 1291.3333333333333,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-974",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 834,
+      "observed_history_prediction": 661.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-974",
+      "state": "8:1",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 726,
+      "observed_history_prediction": 747.5,
+      "pooled_prediction": 1085.4444444444443,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-1101",
+      "state": "4:0",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 1101,
+      "observed_history_prediction": 967.0,
+      "pooled_prediction": 1193.111111111111,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-1101",
+      "state": "8:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1247,
+      "observed_history_prediction": 1034.0,
+      "pooled_prediction": 1226.6666666666667,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-1101",
+      "state": "12:0",
+      "break_even_tokens": 268.99583333333334,
+      "actual_next_chunk_tokens": 1137,
+      "observed_history_prediction": 1105.0,
+      "pooled_prediction": 1291.3333333333333,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-332",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 1119,
+      "observed_history_prediction": 1011.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-1442",
+      "state": "4:0",
+      "break_even_tokens": 537.9916666666667,
+      "actual_next_chunk_tokens": 1536,
+      "observed_history_prediction": 1155.0,
+      "pooled_prediction": 1193.111111111111,
+      "actual_cost_changes_fresh_ranking": false
+    },
+    {
+      "prompt_id": "math-algebra-train-349",
+      "state": "4:1",
+      "break_even_tokens": 1173.8,
+      "actual_next_chunk_tokens": 1040,
+      "observed_history_prediction": 955.0,
+      "pooled_prediction": 959.7272727272727,
+      "actual_cost_changes_fresh_ranking": false
+    }
+  ],
+  "paired_orders": [
+    {
+      "seed": 53,
+      "mixed_groups": 21,
+      "generated_tokens": 32343,
+      "continuation_chunks_by_initial_outcome": {
+        "1": 1
+      },
+      "accepted_group_origins": {
+        "fresh": 20,
+        "initial_1": 1
+      },
+      "mixed_groups_with_only_unparseable_negatives": 9
+    },
+    {
+      "seed": 59,
+      "mixed_groups": 21,
+      "generated_tokens": 31770,
+      "continuation_chunks_by_initial_outcome": {
+        "1": 4
+      },
+      "accepted_group_origins": {
+        "initial_1": 4,
+        "fresh": 17
+      },
+      "mixed_groups_with_only_unparseable_negatives": 7
+    },
+    {
+      "seed": 61,
+      "mixed_groups": 20,
+      "generated_tokens": 31940,
+      "continuation_chunks_by_initial_outcome": {},
+      "accepted_group_origins": {
+        "fresh": 20
+      },
+      "mixed_groups_with_only_unparseable_negatives": 6
+    },
+    {
+      "seed": 67,
+      "mixed_groups": 23,
+      "generated_tokens": 31884,
+      "continuation_chunks_by_initial_outcome": {
+        "1": 4
+      },
+      "accepted_group_origins": {
+        "fresh": 21,
+        "initial_1": 2
+      },
+      "mixed_groups_with_only_unparseable_negatives": 10
+    },
+    {
+      "seed": 71,
+      "mixed_groups": 18,
+      "generated_tokens": 31902,
+      "continuation_chunks_by_initial_outcome": {
+        "1": 4
+      },
+      "accepted_group_origins": {
+        "fresh": 15,
+        "initial_1": 3
+      },
+      "mixed_groups_with_only_unparseable_negatives": 6
+    }
+  ],
+  "caveats": [
+    "Unparseable is a recorded extraction status, not an adjudicated false negative.",
+    "Actual future costs are used only for retrospective ranking diagnostics, never an online policy.",
+    "Probabilities and the fresh pooled cost remain fitted on this calibration cache.",
+    "The ranking diagnostic is not a global scheduling oracle or a bound on every possible estimator.",
+    "Continuation states and prompt orders share prompts and are not independent replications."
+  ]
+}

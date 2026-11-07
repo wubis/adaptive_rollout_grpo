@@ -4,7 +4,7 @@ This project studies how to spend a fixed generation budget when post-training a
 
 When all eight answers are correct or all eight are wrong, their relative advantages are zero. A group with both outcomes gives GRPO a reward contrast to learn from. The planned experiment compares giving the next four rollouts to a fresh prompt versus giving them to a prompt whose previous answers all received the same reward. The comparison holds the generated-token budget fixed because completions can differ substantially in length.
 
-**Current status.** The 384-token pilot completed four A100 updates. The offline replay check stopped at calibration because only one of 16 prompts had a uniform first chunk, below the three-prompt continuation minimum. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the result and grader audit.
+**Current status.** The bounded 60-prompt calibration study is complete. Continuation support improved, but prompt-specific costs changed zero dispatches and produced zero yield gain over pooled costs. The recommendation is to rescope the current estimator before a held-out run. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the results and remaining verifier failures.
 
 ## Quick start
 
@@ -95,6 +95,32 @@ The fit and evaluation run on CPU with the Python standard library. Use separate
 
 The completed calibration run is in `artifacts/replay.QK7t7wlw/`. Read `calibration-gate.json` for the early no-go and `grader-audit.jsonl` for the row-level review.
 
+### Revised calibration study
+
+The level-balanced 60-prompt plan and advancement criteria are frozen in `calibration_study.json`. The offline verifier audit must pass before collection.
+
+```bash
+uv run --no-project --with 'math-verify[antlr4_13_2]==0.9.0' \
+  python -B audit_verifier_v2.py
+uv run --no-project --with 'math-verify[antlr4_13_2]==0.9.0' \
+  bash scripts/run_colab_smoke.sh A100 --calibration-study
+# Set calibration_dir to the printed run directory.
+uv run --no-project --with 'math-verify[antlr4_13_2]==0.9.0' \
+  python -B review_calibration_study.py "$calibration_dir"
+# Record human_reward and reason for every selected completion in judgments.jsonl.
+uv run --no-project --with 'math-verify[antlr4_13_2]==0.9.0' \
+  python -B review_calibration_study.py "$calibration_dir" \
+  --judgments "$calibration_dir/judgments.jsonl"
+python3 -B analyze_calibration_study.py \
+  --rollouts "$calibration_dir/rollouts.jsonl" \
+  --manual-audit "$calibration_dir/manual-review-summary.json" \
+  --output "$calibration_dir/development-report.json"
+```
+
+The runner downloads complete snapshots through file polling and recovers from a stalled console connection. To resume a removed runtime from a complete saved prefix, use `--calibration-study-resume <run-directory>`. The runner preserves the prompt seeds and rejects recovery that cannot reserve potentially lost generation within the original cap. The report labels its yield comparisons as calibration development diagnostics and evaluates the frozen advancement criteria.
+
+The completed cache and review are in `artifacts/replay.VgSpgmeu/`. Read `development-report.json`, `manual-review-summary.json` and `experiment-ledger.json`. The original interrupted prefix is in `artifacts/replay.h0RbYUVM/`. The scorer used in this study, `final-answer-v2`, passed the historical change audit and failed the fresh manual audit. Its results support development diagnostics only.
+
 ## Reading a smoke run
 
 Each run saves its logs under `artifacts/fixed8.<run-id>/`.
@@ -113,6 +139,7 @@ Each run saves its logs under `artifacts/fixed8.<run-id>/`.
 | --- | --- |
 | [`fixed8.py`](fixed8.py) | Converts eight binary rewards from one prompt into group-normalized advantages. |
 | [`verifier.py`](verifier.py) | Contains the historical box-only scorer and the reviewed final-answer fallback. |
+| [`verifier_v2.py`](verifier_v2.py) | Versions the revised extraction rule for the new calibration study. |
 | [`rescore_fixed8.py`](rescore_fixed8.py) | Compares both scorers on saved rollouts without a model or GPU. |
 | [`smoke_fixed8.py`](smoke_fixed8.py) | Generates and grades completions, checks log-probabilities, and applies one GRPO update. |
 | [`validation_smoke.jsonl`](validation_smoke.jsonl) | Small MATH-derived fixture with separate update and evaluation rows. |
@@ -121,6 +148,9 @@ Each run saves its logs under `artifacts/fixed8.<run-id>/`.
 | [`replay_feasibility.py`](replay_feasibility.py) | Fits shared estimates and runs the paired offline feasibility check. |
 | [`collect_replay.py`](collect_replay.py) | Collects one frozen split through the fixed-8 sampler and saves raw rollouts. |
 | [`replay_feasibility.json`](replay_feasibility.json) | Freezes replay splits, collection settings, simulation caps, and gates. |
+| [`calibration_study.json`](calibration_study.json) | Freezes the 60-prompt sample, compute limits, and development criteria. |
+| [`prepare_calibration_study.py`](prepare_calibration_study.py) | Reproduces the sample from the pinned MATH source. |
+| [`analyze_calibration_study.py`](analyze_calibration_study.py) | Computes calibration development diagnostics and advancement checks. |
 | [`scripts/run_colab_smoke.sh`](scripts/run_colab_smoke.sh) | Runs the smoke test, cap comparison, or pilot through the Colab CLI and retrieves logs. |
 | [`requirements-colab.txt`](requirements-colab.txt) | Pinned Transformers and Math-Verify dependencies for the smoke driver. |
 | [`tests/`](tests/) | Local tests for advantage calculation and verifier behavior. |
