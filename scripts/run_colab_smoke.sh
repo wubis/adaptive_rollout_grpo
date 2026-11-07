@@ -6,11 +6,13 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 gpu=${1:-A100}
 case "$gpu" in
     A100|H100|L4|T4|G4) ;;
-    *) printf 'Usage: bash scripts/run_colab_smoke.sh [A100|H100|L4|T4|G4] [--compare-caps|--pilot]\n' >&2; exit 2 ;;
+    *) printf 'Usage: bash scripts/run_colab_smoke.sh [A100|H100|L4|T4|G4] [--compare-caps|--pilot|--replay-calibration|--replay-held-out]\n' >&2; exit 2 ;;
 esac
 
 upload_files=(fixed8.py verifier.py smoke_fixed8.py validation_smoke.jsonl)
 pilot=0
+replay_split=
+frozen_calibration=
 case "${2:-}" in
     '') driver=smoke_fixed8.py; summary=update.json ;;
     --compare-caps)
@@ -23,6 +25,20 @@ case "${2:-}" in
         driver=pilot_fixed8.py
         summary=pilot.json
         upload_files+=("$driver")
+        ;;
+    --replay-calibration|--replay-held-out)
+        replay_split=calibration
+        if [[ "$2" == --replay-held-out ]]; then
+            replay_split=held_out
+            frozen_calibration=${3:-}
+            if [[ ! -f "$frozen_calibration" ]]; then
+                printf 'Pass the frozen calibration JSON as the third argument for held-out replay.\n' >&2
+                exit 2
+            fi
+        fi
+        driver=collect_replay.py
+        summary=collection.json
+        upload_files+=("$driver" replay_feasibility.py pilot_fixed8.py pilot_math.json)
         ;;
     *) printf 'Unknown mode: %s\n' "$2" >&2; exit 2 ;;
 esac
@@ -50,12 +66,22 @@ colab_cli() {
 }
 
 mkdir -p artifacts
-run_dir=$(mktemp -d "$PWD/artifacts/fixed8.XXXXXXXX")
-session="fixed8-${run_dir##*.}"
+run_prefix=fixed8
+if [[ -n "$replay_split" ]]; then
+    run_prefix=replay
+fi
+run_dir=$(mktemp -d "$PWD/artifacts/$run_prefix.XXXXXXXX")
+session="$run_prefix-${run_dir##*.}"
 printf 'Colab session %s\nLocal logs %s\n' "$session" "$run_dir"
 if (( pilot )); then
     # The checked config already contains the complete split manifest.
     python3 -B "$driver" --prepare --output-dir "$run_dir"
+elif [[ -n "$replay_split" ]]; then
+    replay_args=(--split "$replay_split")
+    if [[ -n "$frozen_calibration" ]]; then
+        replay_args+=(--frozen "$frozen_calibration")
+    fi
+    python3 -B "$driver" "${replay_args[@]}" --prepare --output-dir "$run_dir"
 fi
 colab_cli version | tee "$run_dir/cli-version.txt"
 colab_cli sessions >/dev/null
@@ -101,8 +127,11 @@ colab_cli install -s "$session" -r requirements-colab.txt 2>&1 | tee "$run_dir/i
 for file in "${upload_files[@]}"; do
     colab_cli upload -s "$session" "$file" "/content/$file"
 done
-if (( pilot )); then
+if (( pilot )) || [[ -n "$replay_split" ]]; then
     colab_cli upload -s "$session" "$run_dir/config.json" /content/config.json
+fi
+if [[ -n "$frozen_calibration" ]]; then
+    colab_cli upload -s "$session" "$frozen_calibration" /content/frozen.json
 fi
 
 driver_status=0
@@ -111,8 +140,13 @@ import subprocess
 import sys
 
 command = [sys.executable, "-u", "$driver"]
+replay_split = "$replay_split"
 if $pilot:
     command.extend(["--plan", "config.json"])
+if replay_split:
+    command.extend(["--plan", "config.json", "--split", replay_split])
+if replay_split == "held_out":
+    command.extend(["--frozen", "frozen.json"])
 process = subprocess.Popen(
     command,
     cwd="/content",
@@ -126,14 +160,15 @@ def drain_fixed8(review=False, checkpoint=False):
         print(line, end="", flush=True)
         if review and line.strip() == "FIXED8_REVIEW_READY":
             return
-        if checkpoint and line.startswith("Step ") and " completed: " in line:
+        is_step = line.startswith("Step ") and " completed: " in line
+        if checkpoint and (is_step or line.strip() == "REPLAY_CHECKPOINT_READY"):
             print("FIXED8_CHECKPOINT_READY", flush=True)
             return
     if process.wait() != 0:
         raise SystemExit(process.returncode)
     print("FIXED8_DRIVER_OK")
 
-drain_fixed8(review=bool($pilot))
+drain_fixed8(review=bool($pilot), checkpoint=bool(replay_split))
 PY
 
 if (( pilot && driver_status == 0 )); then
@@ -160,7 +195,7 @@ PY
 fi
 
 checkpoint=0
-while (( pilot && driver_status == 0 && checkpoint < $(grep -Fxc FIXED8_CHECKPOINT_READY "$run_dir/console.txt" || true) )); do
+while (( driver_status == 0 && checkpoint < $(grep -Fxc FIXED8_CHECKPOINT_READY "$run_dir/console.txt" || true) )); do
     checkpoint=$((checkpoint + 1))
     for file in "$summary" rollouts.jsonl; do
         if ! colab_cli download -s "$session" "/content/$file" "$run_dir/step-$checkpoint.$file"; then

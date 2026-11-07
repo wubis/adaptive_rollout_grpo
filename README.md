@@ -4,7 +4,7 @@ This project studies how to spend a fixed generation budget when post-training a
 
 When all eight answers are correct or all eight are wrong, their relative advantages are zero. A group with both outcomes gives GRPO a reward contrast to learn from. The planned experiment compares giving the next four rollouts to a fresh prompt versus giving them to a prompt whose previous answers all received the same reward. The comparison holds the generated-token budget fixed because completions can differ substantially in length.
 
-**Current status.** The bounded 384-token pilot completed four fixed-8 GRPO updates on a Colab A100 and scored 8/8 at both validation endpoints. The offline replay harness and frozen protocol passed local checks. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the research design and experiment record.
+**Current status.** The 384-token pilot completed four A100 updates. The offline replay check stopped at calibration because only one of 16 prompts had a uniform first chunk, below the three-prompt continuation minimum. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the result and grader audit.
 
 ## Quick start
 
@@ -73,19 +73,27 @@ The completed run is in `artifacts/fixed8.KSQmiIPa/`. Its `grader-audit.jsonl` c
 
 ### Offline replay feasibility
 
-After collecting the two frozen caches described in [replay_feasibility.json](replay_feasibility.json), fit on the calibration file and save the frozen result before evaluating the held-out file. These commands run on CPU with the Python standard library.
+Collect the calibration cache on Colab first and record the `artifacts/replay.<run-id>/` directory printed by the runner. Fit and freeze the estimates before collecting the held-out cache. The collector uses the pinned model, sample order and verifier in the plan. It downloads log snapshots every two prompts and releases the VM at the end of each split. [Frozen replay plan](replay_feasibility.json)
 
 ```bash
+uv run --no-project --with 'math-verify[antlr4_13_2]==0.9.0' \
+  bash scripts/run_colab_smoke.sh A100 --replay-calibration
+# Set calibration_dir to the directory printed by the runner.
 python3 -B replay_feasibility.py calibrate \
-  --rollouts artifacts/replay.feasibility/calibration.jsonl \
-  --output artifacts/replay.feasibility/frozen.json
+  --rollouts "$calibration_dir/rollouts.jsonl" \
+  --output "$calibration_dir/frozen.json"
+uv run --no-project --with 'math-verify[antlr4_13_2]==0.9.0' \
+  bash scripts/run_colab_smoke.sh A100 --replay-held-out "$calibration_dir/frozen.json"
+# Set held_out_dir to the directory printed by this run.
 python3 -B replay_feasibility.py evaluate \
-  --rollouts artifacts/replay.feasibility/held_out.jsonl \
-  --frozen artifacts/replay.feasibility/frozen.json \
-  --output artifacts/replay.feasibility/report.json
+  --rollouts "$held_out_dir/rollouts.jsonl" \
+  --frozen "$calibration_dir/frozen.json" \
+  --output "$held_out_dir/report.json"
 ```
 
-Use separate JSONL files with 16 completion indices from 0 to 15 for every prompt. Each row needs `prompt_id`, `completion_index`, `generated_tokens`, `reward`, `truncated`, `verifier_status`, and `answer_source`. Retain the raw `completion` and `token_ids` for the verifier audit and record the generating policy and decoding metadata with each cache. The harness checks split membership, indices, and accounting fields. The calibration file freezes probabilities, cost estimates, and the simple cutoff control. The report records each simulated dispatch, per-arm token debit and yield, prediction checks, answer-format coverage, and the gate result. The commands require fresh output paths to preserve the frozen results.
+The fit and evaluation run on CPU with the Python standard library. Use separate JSONL files with 16 completion indices from 0 to 15 for every prompt. Each row needs `prompt_id`, `completion_index`, `generated_tokens`, `reward`, `truncated`, `verifier_status`, and `answer_source`. The collector retains raw `completion` and `token_ids` for the verifier audit and saves the config, provenance, and timing alongside each cache. The harness checks split membership, indices, and accounting fields. The calibration file freezes probabilities, cost estimates, and the simple cutoff control. Held-out collection requires at least one supported continuation in that file. The report records each simulated dispatch, per-arm token debit and yield, prediction checks, answer-format coverage, and the gate result. The commands require fresh output paths to preserve the frozen results.
+
+The completed calibration run is in `artifacts/replay.QK7t7wlw/`. Read `calibration-gate.json` for the early no-go and `grader-audit.jsonl` for the row-level review.
 
 ## Reading a smoke run
 
@@ -111,6 +119,7 @@ Each run saves its logs under `artifacts/fixed8.<run-id>/`.
 | [`pilot_fixed8.py`](pilot_fixed8.py) | Runs the bounded 384-token pilot through the fixed-8 update path. |
 | [`pilot_math.json`](pilot_math.json) | Freezes the MATH Algebra splits, seeds, and training limits. |
 | [`replay_feasibility.py`](replay_feasibility.py) | Fits shared estimates and runs the paired offline feasibility check. |
+| [`collect_replay.py`](collect_replay.py) | Collects one frozen split through the fixed-8 sampler and saves raw rollouts. |
 | [`replay_feasibility.json`](replay_feasibility.json) | Freezes replay splits, collection settings, simulation caps, and gates. |
 | [`scripts/run_colab_smoke.sh`](scripts/run_colab_smoke.sh) | Runs the smoke test, cap comparison, or pilot through the Colab CLI and retrieves logs. |
 | [`requirements-colab.txt`](requirements-colab.txt) | Pinned Transformers and Math-Verify dependencies for the smoke driver. |
